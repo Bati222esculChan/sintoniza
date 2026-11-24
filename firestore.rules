@@ -1,0 +1,83 @@
+rules_version = '2';
+// Reglas de seguridad de Sintoniza. Pegar en Firebase → Firestore → Reglas.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // nombre de usuario → uid (para que no se repitan)
+    match /usernames/{name} {
+      allow get: if signed();
+      allow create: if signed()
+        && name.matches('^[a-z0-9_.]{3,20}$')
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == me();
+      allow list, update, delete: if false;
+    }
+
+    // perfil público (lo ve cualquier usuario con sesión)
+    match /users/{uid} {
+      allow read: if signed();
+      allow create: if signed() && uid == me()
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == me();
+      allow update: if signed() && uid == me()
+        && !('username' in changed())
+        && (!('favorites' in request.resource.data) || request.resource.data.favorites.size() <= 100);
+      allow delete: if false;
+
+      // correo: solo lo ve su dueño
+      match /private/{docId} {
+        allow read, write: if signed() && uid == me();
+      }
+      // historial de encuestas: solo su dueño
+      match /results/{rid} {
+        allow read, create, delete: if signed() && uid == me();
+        allow update: if false;
+      }
+    }
+
+    // a quién sigue cada quien; id = "<de>_<a>"
+    match /follows/{fid} {
+      allow read: if signed();
+      allow create: if signed()
+        && request.resource.data.from == me()
+        && request.resource.data.to != me()
+        && fid == me() + '_' + request.resource.data.to;
+      allow delete: if signed() && resource.data.from == me();
+      allow update: if false;
+    }
+
+    // playlists compartidas entre miembros
+    match /playlists/{pid} {
+      allow read: if signed() && me() in resource.data.members;
+      allow create: if signed()
+        && request.resource.data.owner == me()
+        && request.resource.data.members == [me()]
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60;
+      allow update: if signed() && request.resource.data.songs.size() <= 300 && (
+          // el dueño puede cambiar todo menos el dueño
+          (resource.data.owner == me() && request.resource.data.owner == me())
+          // un miembro agrega o quita canciones
+          || (me() in resource.data.members && changed().hasOnly(['songs', 'updatedAt']))
+          // un miembro se sale
+          || (me() in resource.data.members && me() != resource.data.owner
+              && changed().hasOnly(['members', 'updatedAt'])
+              && request.resource.data.members == resource.data.members.removeAll([me()]))
+        );
+      allow delete: if signed() && resource.data.owner == me();
+    }
+
+    // canciones recomendadas de un usuario a otro
+    match /recs/{rid} {
+      allow read: if signed() && (resource.data.to == me() || resource.data.from == me());
+      allow create: if signed()
+        && request.resource.data.from == me()
+        && request.resource.data.to != me()
+        && request.resource.data.read == false
+        && request.resource.data.msg.size() <= 280;
+      allow update: if signed() && resource.data.to == me() && changed().hasOnly(['read']);
+      allow delete: if signed() && resource.data.to == me();
+    }
+  }
+}

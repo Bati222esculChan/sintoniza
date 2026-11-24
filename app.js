@@ -58,11 +58,8 @@ modal.addEventListener("close", () => (modal.innerHTML = ""));
 /* ---------- sin configurar ---------- */
 const configured = firebaseConfig?.apiKey && !firebaseConfig.apiKey.startsWith("PEGA");
 if (!configured) {
-  app.innerHTML = `<section class="card">
-    <div class="eyebrow">Falta un paso</div>
-    <h2>Conecta tu proyecto de Firebase</h2>
-    <p class="muted">Abre <strong>firebase-config.js</strong> y pega la configuración de tu app web de Firebase. Los pasos completos están en <strong>LEEME.md</strong>.</p>
-  </section>`;
+  // sin Firebase: cuentas en este navegador y se comparte por link
+  import("./local.js").then(m => m.startLocal());
 } else {
   start();
 }

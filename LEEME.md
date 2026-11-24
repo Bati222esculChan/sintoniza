@@ -3,6 +3,14 @@
 Web de encuesta musical con cuentas (usuario + contraseña), perfil, amigos con % de compatibilidad,
 playlists compartidas, buzón de canciones recomendadas y conexión con Spotify.
 
+## Modo sin servidor (el que está activo ahora)
+
+Mientras `firebase-config.js` tenga `PEGA_AQUI`, la web funciona sin servidor: cada cuenta se guarda en el
+navegador de quien la crea (contraseña cifrada con PBKDF2) y todo se comparte por link: perfil (agrega amigo y
+calcula compatibilidad), playlists (el amigo recibe una copia) y canciones recomendadas (llegan a su buzón).
+Los links se pueden mandar por WhatsApp, correo o copiar. Al poner la config de Firebase, la web pasa sola al
+modo con cuentas en la nube.
+
 ## 1. Firebase (cuentas y datos) — gratis
 
 1. Entra a https://console.firebase.google.com y crea un proyecto (ej. `sintoniza`). Google Analytics no hace falta.
